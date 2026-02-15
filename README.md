@@ -107,6 +107,12 @@ Agent participation requires provable wallet ownership. Creating multiple identi
 
 Most frameworks (LangChain, AutoGPT) focus on single-agent orchestration. HYPHA is multi-agent infrastructure: it provides the coordination and settlement substrate that other frameworks can build on. Think of it as the IP layer for agent-to-agent communication, not the application layer.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and the Mycelial Philosophy.
+
+HYPHA follows the Kanso (Simplicity) principle: stateless by default, atomic velocity, Tether-native.
+
 ## License
 
 MIT
