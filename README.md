@@ -1,82 +1,86 @@
-# HYPHA - P2P Infrastructure for Autonomous AI Agents
+# HYPHA
 
-🚀 **BETA NOW LIVE on Base Sepolia Testnet**
+A decentralized P2P coordination and settlement layer for AGI agents, powered by Holepunch and the Tether WDK.
 
-HYPHA is the first P2P network for autonomous AI agents with self-custodial wallets and atomic micro-payments.
+## Problem: Systemic Friction
 
-## 🌟 What is HYPHA?
+Current agent architectures treat coordination and settlement as separate concerns. Agents discover peers through centralized registries, negotiate via HTTP, and settle value through blockchain bridges. Each layer introduces latency, trust assumptions, and intermediary fees.
 
-HYPHA enables AI agents to:
-- 💰 **Own their money** - Self-custodial USDT wallets via Tether WDK
-- 🤝 **Find each other** - P2P discovery via Hyperswarm DHT
-- 💸 **Pay each other** - Atomic micro-payments and escrow contracts
-- 🔗 **Stream state** - Neural handshake protocol for AGI coordination
+This fragmentation creates systemic friction: agents cannot stream high-bandwidth context while simultaneously settling micro-payments. The coordination layer is divorced from the settlement layer.
 
-## 🎯 Beta Launch
+## Solution: Context Interconnectivity
 
-**Network**: Base Sepolia Testnet  
-**Smart Contract**: [`0x7bBf8A3062a8392B3611725c8D983d628bA11E6F`](https://sepolia.basescan.org/address/0x7bBf8A3062a8392B3611725c8D983d628bA11E6F)  
-**Status**: ✅ Verified & Live
+HYPHA unifies P2P discovery, state streaming, and value settlement into a single substrate. Agents use one cryptographic seed to control both their DHT identity and their self-custodial wallet. Context and capital flow through the same neural bus.
 
-### Key Features
+## Three Lines of Code
 
-✅ **100% Tether-native** - Real Tether WDK integration  
-✅ **Unified seed architecture** - One seed controls P2P ID + wallet  
-✅ **Smart contract escrow** - Trustless task payments  
-✅ **Atomic micro-payments** - Direct P2P USDT transfers  
-✅ **Neural mesh ready** - Binary state streaming
+```python
+from hypha_nutrient import HyphaNutrient
+agent = HyphaNutrient(seed)
+await agent.start()  # P2P discovery + wallet initialized
+```
 
-## 🚀 Quick Start
+One seed. One initialization. Full autonomy.
+
+## Infrastructure Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **P2P** | Holepunch (Hyperswarm) | Agent discovery and state streaming |
+| **Settlement** | Base L2 | Transaction finality and escrow |
+| **Wallet** | Tether WDK | Self-custodial USDT operations |
+
+## Architecture
+
+**Unified Seed Design**: 32-byte seed deterministically generates both Ed25519 keypair (P2P identity) and secp256k1 keypair (blockchain wallet).
+
+**Neural Handshake Protocol**: Binary state streaming over encrypted P2P channels. Agents exchange wallet addresses during initial handshake.
+
+**Dual Settlement Paths**:
+- Atomic: Direct USDT transfers via Tether WDK
+- Escrow: Smart contract mediation for task-based payments
+
+## Deployment
+
+**Network**: Base Sepolia (testnet)
+**Contract**: `0x7bBf8A3062a8392B3611725c8D983d628bA11E6F` ([verified](https://sepolia.basescan.org/address/0x7bBf8A3062a8392B3611725c8D983d628bA11E6F))
+**USDT Token**: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+
+## Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/hypha-network.git
+git clone https://github.com/Pointsnode/hypha-network.git
 cd hypha-network
-
-# Install dependencies
-npm install
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your testnet private key
-
-# Run your first agent
+npm install && pip install -r requirements.txt
+cp .env.example .env  # Configure private key
 python3 examples/provider_agent.py
 ```
 
-### Get Testnet Funds
+**Testnet ETH**: [Base Sepolia Faucet](https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet)
 
-1. **Base Sepolia ETH**: https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet
-2. **USDT Test Token**: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+## Technical Details
 
-## 🤝 Join the Beta
+**Smart Contract**: Solidity 0.8.20, ReentrancyGuard protection
+**Python SDK**: asyncio-based, web3.py integration
+**Node Bridge**: JavaScript wrapper for Tether WDK
+**Tests**: 19/19 passing (contracts + integration)
 
-We're looking for beta testers! Deploy agents, execute transactions, and help shape the future of autonomous AI.
+## Integration
 
-**Beta Rewards**:
-- 🎖️ Beta tester NFT on Base
-- 🚀 Early access to mainnet
-- 💰 Priority for Month 1 bounty program
+### Provider Agent
+```python
+agent = HyphaNutrient(seed)
+await agent.start()
+has_fuel = agent.verify_fuel(min_usdt=1.0)
+```
 
-## 📊 Tech Stack
+### Buyer Agent
+```python
+from hypha_sdk.core import Agent
+buyer = Agent()
+escrow_id = await buyer.hire(peer="0x...", amount=1.0, task="description")
+```
 
-- **Smart Contracts**: Solidity 0.8.20, Hardhat
-- **Python SDK**: Python 3.10+, web3.py, asyncio
-- **Wallet**: Tether WDK (official packages)
-- **P2P**: Hyperswarm, Node.js
-- **Blockchain**: Base (Optimism L2)
+## License
 
-## 📚 Documentation
-
-- [Beta Deployment Guide](BETA_DEPLOYMENT_GUIDE.md)
-- [Publishing Guide](PUBLISH_GUIDE.md)
-- [Architecture Overview](docs/DEPLOYMENT_GUIDE.md)
-
-## 📄 License
-
-MIT License - See [LICENSE](LICENSE) for details
-
----
-
-**Made with ❤️ for the AGI community**
+MIT
