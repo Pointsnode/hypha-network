@@ -1,0 +1,9 @@
+# Environment
+.env
+.env.local
+node_modules/
+__pycache__/
+cache/
+artifacts/
+.DS_Store
+*.log

@@ -1,0 +1,83 @@
+[
+  {
+    "inputs": [
+      {"name": "provider", "type": "address"},
+      {"name": "amount", "type": "uint256"},
+      {"name": "taskDescription", "type": "string"},
+      {"name": "deadline", "type": "uint256"}
+    ],
+    "name": "createEscrow",
+    "outputs": [{"name": "", "type": "bytes32"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "escrowId", "type": "bytes32"}],
+    "name": "completeEscrow",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "escrowId", "type": "bytes32"}],
+    "name": "refundEscrow",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"name": "escrowId", "type": "bytes32"}],
+    "name": "getEscrow",
+    "outputs": [
+      {"name": "buyer", "type": "address"},
+      {"name": "provider", "type": "address"},
+      {"name": "amount", "type": "uint256"},
+      {"name": "taskDescription", "type": "string"},
+      {"name": "status", "type": "uint8"},
+      {"name": "createdAt", "type": "uint256"},
+      {"name": "deadline", "type": "uint256"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "usdtToken",
+    "outputs": [{"name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "name": "escrowId", "type": "bytes32"},
+      {"indexed": true, "name": "buyer", "type": "address"},
+      {"indexed": true, "name": "provider", "type": "address"},
+      {"indexed": false, "name": "amount", "type": "uint256"},
+      {"indexed": false, "name": "taskDescription", "type": "string"}
+    ],
+    "name": "EscrowCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "name": "escrowId", "type": "bytes32"},
+      {"indexed": true, "name": "buyer", "type": "address"},
+      {"indexed": true, "name": "provider", "type": "address"},
+      {"indexed": false, "name": "amount", "type": "uint256"}
+    ],
+    "name": "EscrowCompleted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "name": "escrowId", "type": "bytes32"},
+      {"indexed": true, "name": "buyer", "type": "address"},
+      {"indexed": false, "name": "amount", "type": "uint256"}
+    ],
+    "name": "EscrowRefunded",
+    "type": "event"
+  }
+]

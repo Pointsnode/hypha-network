@@ -1,0 +1,34 @@
+{
+  "name": "hypha-project",
+  "version": "0.1.0",
+  "description": "P2P Infrastructure for Autonomous AI Agents",
+  "main": "src/discovery/bridge.js",
+  "scripts": {
+    "test": "node src/discovery/bridge.js lookup hypha-test",
+    "compile": "hardhat compile",
+    "deploy:testnet": "hardhat run scripts/deploy.js --network baseSepolia",
+    "deploy:mainnet": "hardhat run scripts/deploy.js --network base",
+    "test:contracts": "hardhat test"
+  },
+  "keywords": [
+    "p2p",
+    "hyperswarm",
+    "ai-agents",
+    "blockchain",
+    "payments"
+  ],
+  "author": "HYPHA Team",
+  "license": "MIT",
+  "dependencies": {
+    "@tetherto/wdk": "latest",
+    "@tetherto/wdk-wallet-evm": "latest",
+    "ethers": "^6.0.0",
+    "hyperswarm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@openzeppelin/contracts": "^5.4.0",
+    "dotenv": "^16.0.0",
+    "hardhat": "^2.19.0"
+  }
+}

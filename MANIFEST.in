@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+include requirements.txt
+include .env.example
+recursive-include src *.js
+recursive-include contracts *.sol
+recursive-include docs *.md
+recursive-include hypha_sdk/abis *.json
