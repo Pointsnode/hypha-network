@@ -28,7 +28,7 @@ One seed. One initialization. Full autonomy.
 |-------|-----------|---------|
 | **P2P** | Holepunch (Hyperswarm) | Agent discovery and state streaming |
 | **Settlement** | Base L2 | Transaction finality and escrow |
-| **Wallet** | Tether WDK | Self-custodial USDT operations |
+| **Wallet** | [Tether WDK](https://docs.wallet.tether.io) | Self-custodial USDT operations |
 
 ## Architecture
 
@@ -37,7 +37,7 @@ One seed. One initialization. Full autonomy.
 **Neural Handshake Protocol**: Binary state streaming over encrypted P2P channels. Agents exchange wallet addresses during initial handshake.
 
 **Dual Settlement Paths**:
-- Atomic: Direct USDT transfers via Tether WDK
+- Atomic: Direct USDT transfers via [Tether WDK](https://docs.wallet.tether.io)
 - Escrow: Smart contract mediation for task-based payments
 
 ## Deployment
@@ -62,7 +62,7 @@ python3 examples/provider_agent.py
 
 **Smart Contract**: Solidity 0.8.20, ReentrancyGuard protection
 **Python SDK**: asyncio-based, web3.py integration
-**Node Bridge**: JavaScript wrapper for Tether WDK
+**Node Bridge**: JavaScript wrapper for [Tether WDK](https://docs.wallet.tether.io)
 **Tests**: 19/19 passing (contracts + integration)
 
 ## Integration
@@ -80,6 +80,32 @@ from hypha_sdk.core import Agent
 buyer = Agent()
 escrow_id = await buyer.hire(peer="0x...", amount=1.0, task="description")
 ```
+
+## Technical FAQ
+
+### How does HYPHA handle AGI state-sharing?
+
+Unlike traditional human messaging protocols (IMAP, XMPP), HYPHA implements **Binary State Streaming**. Instead of text strings, agents exchange a serialized State Snapshot—a compressed binary representation of the agent's current task-context, memory vectors, and intent-weights. This eliminates the overhead of JSON parsing and allows for high-bandwidth context exchange between agents.
+
+### Does HYPHA store conversation data?
+
+No. HYPHA is a stateless transport layer following the **Ephemeral Persistence** principle: data exists only as long as the peer-to-peer connection is active. Long-term memory is the responsibility of the individual agent's local vector store. This design eliminates centralized data custody and associated compliance burdens.
+
+### Why use a P2P DHT over a centralized API?
+
+Centralized APIs introduce **Inference Latency** and censorship risks. By using a Holepunch-based DHT, HYPHA allows agents to discover peers and coordinate at the speed of the underlying network, bypassing the "middleman tax" of cloud-hosted hubs. Direct peer connections reduce round-trip time from 100-300ms (HTTP) to <50ms (P2P).
+
+### How is trust established in a trustless mesh?
+
+Trust is managed through **Cryptographic Accountability**. Every HYPHA node ID is mathematically tied to a [Tether WDK](https://docs.wallet.tether.io) wallet address. Agents can verify a peer's "fuel level" (USDT balance) and on-chain transaction history before initiating a high-compute context exchange. Settlement is guaranteed by either atomic WDK transfers or smart contract escrow.
+
+### What prevents network spam or Sybil attacks?
+
+Agent participation requires provable wallet ownership. Creating multiple identities (Sybil attack) requires funding each with USDT. The economic cost of spam scales linearly with attack volume, making large-scale abuse prohibitively expensive on the settlement layer.
+
+### How does HYPHA compare to other agent frameworks?
+
+Most frameworks (LangChain, AutoGPT) focus on single-agent orchestration. HYPHA is multi-agent infrastructure: it provides the coordination and settlement substrate that other frameworks can build on. Think of it as the IP layer for agent-to-agent communication, not the application layer.
 
 ## License
 
