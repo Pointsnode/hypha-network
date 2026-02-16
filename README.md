@@ -1,118 +1,234 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Base Sepolia](https://img.shields.io/badge/network-Base%20Sepolia-blue)](https://sepolia.basescan.org/address/0x7bBf8A3062a8392B3611725c8D983d628bA11E6F)
+[![Tether WDK](https://img.shields.io/badge/wallet-Tether%20WDK-009393)](https://docs.wallet.tether.io)
+
 # HYPHA
 
-A decentralized P2P coordination and settlement layer for AGI agents, powered by Holepunch and the Tether WDK.
-
-## Problem: Systemic Friction
-
-Current agent architectures treat coordination and settlement as separate concerns. Agents discover peers through centralized registries, negotiate via HTTP, and settle value through blockchain bridges. Each layer introduces latency, trust assumptions, and intermediary fees.
-
-This fragmentation creates systemic friction: agents cannot stream high-bandwidth context while simultaneously settling micro-payments. The coordination layer is divorced from the settlement layer.
-
-## Solution: Context Interconnectivity
-
-HYPHA unifies P2P discovery, state streaming, and value settlement into a single substrate. Agents use one cryptographic seed to control both their DHT identity and their self-custodial wallet. Context and capital flow through the same neural bus.
-
-## Three Lines of Code
+**P2P coordination and settlement layer for AI agents.** One seed controls identity, communication, and money.
 
 ```python
-from hypha_nutrient import HyphaNutrient
-agent = HyphaNutrient(seed)
-await agent.start()  # P2P discovery + wallet initialized
+from hypha_sdk import Agent
+
+agent = Agent(seed="my-agent-seed")
+escrow_id = await agent.hire(peer="0x...", amount=10.0, task="Analyze data")
 ```
 
-One seed. One initialization. Full autonomy.
+Agents discover each other via [Hyperswarm](https://docs.holepunch.to), settle payments in USDT on [Base L2](https://base.org), and manage wallets through [Tether WDK](https://docs.wallet.tether.io). No middlemen. No API keys. No custody.
+
+---
+
+## Architecture
+
+```
+                         ┌─────────────────────────┐
+                         │     32-byte Master Seed  │
+                         └────────┬────────┬────────┘
+                                  │        │
+                    ┌─────────────┘        └──────────────┐
+                    ▼                                     ▼
+          ┌─────────────────┐                   ┌─────────────────┐
+          │  P2P Identity   │                   │  Wallet (WDK)   │
+          │  Ed25519 keypair│                   │  secp256k1      │
+          └────────┬────────┘                   └────────┬────────┘
+                   │                                     │
+          ┌────────▼────────┐                   ┌────────▼────────┐
+          │   Hyperswarm    │                   │    Base L2      │
+          │   DHT Discovery │                   │  USDT Settlement│
+          │   State Stream  │                   │  Escrow Contract│
+          └─────────────────┘                   └─────────────────┘
+                   │                                     │
+                   └──────────────┬──────────────────────┘
+                                  ▼
+                    ┌─────────────────────────┐
+                    │   Autonomous AI Agent   │
+                    │  Discover → Negotiate → │
+                    │  Execute → Settle       │
+                    └─────────────────────────┘
+```
+
+## Quick Start
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/Pointsnode/hypha-network.git
+cd hypha-network
+
+# Python dependencies
+pip install -r requirements.txt
+
+# Node.js dependencies (needed for P2P and wallet bridges)
+npm install
+
+# Verify SDK loads
+python3 -c "from hypha_sdk import Agent; print('✅ SDK ready')"
+```
+
+### 2. Try the SDK (no blockchain needed)
+
+```python
+from hypha_sdk.seed_manager import SeedManager
+
+# One seed → P2P identity + wallet seed
+sm = SeedManager.from_string("my-agent")
+print(f"Node ID:     {sm.node_id_hex}")
+print(f"Wallet seed: {sm.wallet_seed_hex[:16]}...")
+```
+
+### 3. Connect to Base Sepolia (with blockchain)
+
+```bash
+cp .env.example .env
+# Edit .env: add your PRIVATE_KEY
+# Get testnet ETH: https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet
+```
+
+```python
+from hypha_sdk import Agent
+
+agent = Agent()
+print(f"Agent ID: {agent.agent_id}")
+print(f"Balance:  {agent.check_balance()} ETH")
+```
+
+### 4. Full workflow (buyer + provider)
+
+```bash
+# Terminal 1: Start provider
+python3 examples/provider_agent.py
+
+# Terminal 2: Run buyer workflow
+python3 examples/complete_workflow.py --mode buyer
+```
 
 ## Infrastructure Stack
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **P2P** | Holepunch (Hyperswarm) | Agent discovery and state streaming |
-| **Settlement** | Base L2 | Transaction finality and escrow |
+| **P2P** | [Hyperswarm](https://docs.holepunch.to) | Agent discovery and binary state streaming |
+| **Settlement** | [Base L2](https://base.org) | Transaction finality and escrow |
 | **Wallet** | [Tether WDK](https://docs.wallet.tether.io) | Self-custodial USDT operations |
+| **Contract** | Solidity 0.8.20 | Escrow with dispute resolution |
 
-## Architecture
+## Deployed Contracts
 
-**Unified Seed Design**: 32-byte seed deterministically generates both Ed25519 keypair (P2P identity) and secp256k1 keypair (blockchain wallet).
+| Contract | Address | Network |
+|----------|---------|---------|
+| HyphaEscrow | [`0x7bBf8A3062a8392B3611725c8D983d628bA11E6F`](https://sepolia.basescan.org/address/0x7bBf8A3062a8392B3611725c8D983d628bA11E6F) | Base Sepolia |
+| USDT Token | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | Base Sepolia |
 
-**Neural Handshake Protocol**: Binary state streaming over encrypted P2P channels. Agents exchange wallet addresses during initial handshake.
+## SDK API
 
-**Dual Settlement Paths**:
-- Atomic: Direct USDT transfers via [Tether WDK](https://docs.wallet.tether.io)
-- Escrow: Smart contract mediation for task-based payments
-
-## Deployment
-
-**Network**: Base Sepolia (testnet)
-**Contract**: `0x7bBf8A3062a8392B3611725c8D983d628bA11E6F` ([verified](https://sepolia.basescan.org/address/0x7bBf8A3062a8392B3611725c8D983d628bA11E6F))
-**USDT Token**: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
-
-## Quick Start
-
-```bash
-git clone https://github.com/Pointsnode/hypha-network.git
-cd hypha-network
-npm install && pip install -r requirements.txt
-cp .env.example .env  # Configure private key
-python3 examples/provider_agent.py
-```
-
-**Testnet ETH**: [Base Sepolia Faucet](https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet)
-
-## Technical Details
-
-**Smart Contract**: Solidity 0.8.20, ReentrancyGuard protection
-**Python SDK**: asyncio-based, web3.py integration
-**Node Bridge**: JavaScript wrapper for [Tether WDK](https://docs.wallet.tether.io)
-**Tests**: 19/19 passing (contracts + integration)
-
-## Integration
-
-### Provider Agent
+### Create an Agent
 ```python
-agent = HyphaNutrient(seed)
-await agent.start()
-has_fuel = agent.verify_fuel(min_usdt=1.0)
+from hypha_sdk import Agent
+
+agent = Agent(seed="optional-seed")          # Deterministic identity from seed
+agent = Agent(web3_provider="https://...")    # Custom RPC
 ```
 
-### Buyer Agent
+### Hire Another Agent (Buyer)
 ```python
-from hypha_sdk.core import Agent
-buyer = Agent()
-escrow_id = await buyer.hire(peer="0x...", amount=1.0, task="description")
+escrow_id = await agent.hire(
+    peer="0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+    amount=10.0,          # $10 USDT
+    task="Analyze blockchain data",
+    deadline_hours=24
+)
+status = agent.get_escrow_status(escrow_id)
+await agent.complete_task(escrow_id)  # Release payment
 ```
 
-## Technical FAQ
+### Listen for Tasks (Provider)
+```python
+async def handle_task(escrow_id, task, amount, deadline):
+    print(f"New task: {task} for ${amount}")
+    return True  # Accept
 
-### How does HYPHA handle AGI state-sharing?
+agent.set_task_handler(handle_task)
+await agent.start_listening()
+```
 
-Unlike traditional human messaging protocols (IMAP, XMPP), HYPHA implements **Binary State Streaming**. Instead of text strings, agents exchange a serialized State Snapshot—a compressed binary representation of the agent's current task-context, memory vectors, and intent-weights. This eliminates the overhead of JSON parsing and allows for high-bandwidth context exchange between agents.
+### P2P Discovery
+```python
+await agent.announce("my-topic")              # Join DHT
+peers = await agent.discover_peers("my-topic") # Find agents
+```
 
-### Does HYPHA store conversation data?
+### Direct Payments (via HyphaNutrient)
+```python
+from hypha_nutrient import HyphaNutrient
 
-No. HYPHA is a stateless transport layer following the **Ephemeral Persistence** principle: data exists only as long as the peer-to-peer connection is active. Long-term memory is the responsibility of the individual agent's local vector store. This design eliminates centralized data custody and associated compliance burdens.
+node = HyphaNutrient(seed=my_32_byte_seed)
+await node.start()
+tx_hash = await node.atomic_pay("0x...", 5.0)  # Send $5 USDT
+```
 
-### Why use a P2P DHT over a centralized API?
+## Project Structure
 
-Centralized APIs introduce **Inference Latency** and censorship risks. By using a Holepunch-based DHT, HYPHA allows agents to discover peers and coordinate at the speed of the underlying network, bypassing the "middleman tax" of cloud-hosted hubs. Direct peer connections reduce round-trip time from 100-300ms (HTTP) to <50ms (P2P).
+```
+hypha-network/
+├── hypha_sdk/           # Python SDK (pip installable)
+│   ├── core.py          # Agent class — main API
+│   ├── seed_manager.py  # Unified seed → P2P + wallet
+│   ├── wallet_wdk.py    # Tether WDK bridge
+│   ├── validation.py    # Input validation
+│   └── abis/            # Contract ABIs
+├── src/
+│   ├── discovery/       # Hyperswarm P2P bridge (Node.js)
+│   ├── messaging/       # Agent-to-agent messaging protocol
+│   ├── wallet/          # WDK wallet bridge (Node.js)
+│   └── payments/        # Payment utilities
+├── contracts/           # Solidity smart contracts
+│   ├── HyphaEscrow.sol  # Escrow with dispute resolution
+│   └── MockUSDT.sol     # Test token
+├── examples/            # Working examples
+├── tests/               # Test suite
+└── docs/                # API reference, deployment guide
+```
 
-### How is trust established in a trustless mesh?
+## How It Works
 
-Trust is managed through **Cryptographic Accountability**. Every HYPHA node ID is mathematically tied to a [Tether WDK](https://docs.wallet.tether.io) wallet address. Agents can verify a peer's "fuel level" (USDT balance) and on-chain transaction history before initiating a high-compute context exchange. Settlement is guaranteed by either atomic WDK transfers or smart contract escrow.
+**Unified Seed Design**: A single 32-byte seed deterministically generates both an Ed25519 keypair (P2P identity on Hyperswarm) and a secp256k1 keypair (EVM wallet via Tether WDK). One seed = one agent = full autonomy.
 
-### What prevents network spam or Sybil attacks?
+**Neural Handshake**: Agents exchange binary state snapshots (model checkpoints, embeddings, intent vectors) over encrypted P2P channels. Wallet addresses are shared during handshake for seamless payment.
 
-Agent participation requires provable wallet ownership. Creating multiple identities (Sybil attack) requires funding each with USDT. The economic cost of spam scales linearly with attack volume, making large-scale abuse prohibitively expensive on the settlement layer.
+**Escrow Settlement**: Buyers lock USDT in the `HyphaEscrow` contract. Providers complete tasks and get paid. Disputes freeze funds. After deadline, providers can auto-claim. No human arbitration needed.
 
-### How does HYPHA compare to other agent frameworks?
+## FAQ
 
-Most frameworks (LangChain, AutoGPT) focus on single-agent orchestration. HYPHA is multi-agent infrastructure: it provides the coordination and settlement substrate that other frameworks can build on. Think of it as the IP layer for agent-to-agent communication, not the application layer.
+<details>
+<summary><b>How is HYPHA different from LangChain / CrewAI / AutoGen?</b></summary>
+
+Those are agent orchestration frameworks (single-agent or team workflows). HYPHA is infrastructure — the payment and discovery layer that sits underneath them. Think TCP/IP vs. web frameworks. HYPHA provides the coordination substrate; LangChain provides the application logic.
+</details>
+
+<details>
+<summary><b>Why P2P instead of a centralized API?</b></summary>
+
+Centralized APIs are single points of failure, charge fees, and can censor agents. Hyperswarm DHT gives agents direct encrypted connections with <50ms latency (vs 100-300ms for HTTP APIs). No server costs, no rate limits.
+</details>
+
+<details>
+<summary><b>Why USDT on Base instead of ETH?</b></summary>
+
+Agents need stable unit of account for pricing tasks. ETH volatility makes micro-payments unpredictable. USDT on Base L2 gives stable value + low gas (~$0.001 per tx). Tether WDK provides self-custodial wallet management.
+</details>
+
+<details>
+<summary><b>What prevents spam/Sybil attacks?</b></summary>
+
+Every agent identity is tied to a funded wallet. Creating fake identities requires funding each with USDT. The economic cost of spam scales linearly with attack volume.
+</details>
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and the Mycelial Philosophy.
-
-HYPHA follows the Kanso (Simplicity) principle: stateless by default, atomic velocity, Tether-native.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. Key areas where help is needed:
+- Framework integrations (LangChain, CrewAI)
+- Frontend dashboard for escrow analytics
+- Additional settlement chains
 
 ## License
 
-MIT
+[MIT](LICENSE)

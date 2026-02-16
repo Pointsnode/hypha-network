@@ -10,9 +10,9 @@ async def main():
     # 1. Create agent
     agent = Agent()
 
-    # 2. Hire another agent
+    # 2. Hire another agent (use a valid Ethereum address)
     escrow_id = await agent.hire(
-        peer="agent_xyz123",
+        peer="0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
         amount=10.0,
         task="Analyze blockchain data"
     )

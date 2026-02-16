@@ -5,6 +5,7 @@ Blitz-ready production code for agent coordination
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from typing import Optional, Dict, Any

@@ -27,7 +27,7 @@ setup(
     description="P2P Infrastructure for Autonomous AI Agents",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/hypha-network/hypha-sdk",
+    url="https://github.com/Pointsnode/hypha-network",
     packages=find_packages(include=['hypha_sdk', 'hypha_sdk.*', 'src', 'src.*']),
     python_requires=">=3.8",
     install_requires=requirements,
@@ -48,8 +48,8 @@ setup(
     ],
     keywords="p2p, blockchain, ai-agents, autonomous-agents, web3, hyperswarm",
     project_urls={
-        "Bug Reports": "https://github.com/hypha-network/hypha-sdk/issues",
-        "Source": "https://github.com/hypha-network/hypha-sdk",
-        "Documentation": "https://github.com/hypha-network/hypha-sdk/tree/main/docs",
+        "Bug Reports": "https://github.com/Pointsnode/hypha-network/issues",
+        "Source": "https://github.com/Pointsnode/hypha-network",
+        "Documentation": "https://github.com/Pointsnode/hypha-network/tree/main/docs",
     },
 )
