@@ -21,19 +21,19 @@ with open(requirements_path, "r") as fh:
 
 setup(
     name="hypha-sdk",
-    version="0.1.0",
+    version="0.2.0",
     author="HYPHA Team",
     author_email="team@hypha.network",
     description="P2P Infrastructure for Autonomous AI Agents",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Pointsnode/hypha-network",
-    packages=find_packages(include=['hypha_sdk', 'hypha_sdk.*', 'src', 'src.*']),
+    packages=find_packages(include=['hypha_sdk', 'hypha_sdk.*']),
     python_requires=">=3.8",
     install_requires=requirements,
     include_package_data=True,
     package_data={
-        'src': ['discovery/*.js', 'messaging/*.js'],
+        'hypha_sdk': ['abis/*.json'],
     },
     classifiers=[
         "Development Status :: 3 - Alpha",

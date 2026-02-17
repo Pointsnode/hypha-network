@@ -7,6 +7,7 @@ import hashlib
 from typing import Optional
 from nacl.signing import SigningKey
 from nacl.encoding import RawEncoder
+from eth_account import Account
 
 
 class SeedManager:
@@ -59,6 +60,17 @@ class SeedManager:
     def wallet_seed_hex(self) -> str:
         """Get wallet seed as hex string (for WDK initialization)"""
         return self._wallet_seed.hex()
+
+    @property
+    def wallet_address(self) -> str:
+        """Derive EVM wallet address from wallet seed (used as private key)"""
+        acct = Account.from_key(self._wallet_seed)
+        return acct.address
+
+    @property
+    def wallet_private_key(self) -> str:
+        """Get wallet private key hex (the wallet_seed IS the private key)"""
+        return '0x' + self._wallet_seed.hex()
 
     def get_master_seed(self) -> bytes:
         """
