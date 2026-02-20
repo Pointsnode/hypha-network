@@ -3,7 +3,7 @@ import http from 'http'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const RPC         = process.env.RPC_URL          || 'https://sepolia.base.org'
-const CONTRACT    = process.env.CONTRACT_ADDRESS || '0xf1cF5A40ad2c48456C2aD4d59554Ad9baa51F644'
+const CONTRACT    = process.env.CONTRACT_ADDRESS || '0xf48505B6444bf09DaeD018F07d7Cb69BDF006596'
 const RELAYER_KEY = process.env.RELAYER_PRIVATE_KEY
 const PORT        = process.env.PORT || process.env.RELAYER_PORT || 3000
 
@@ -11,13 +11,23 @@ const ABI = [
   'function registerAgentFor(address agent, bytes32 pubkey) external',
   'function agents(address) view returns (bool registered, bytes32 pubkey, uint256 reputation)',
   'function listService(string calldata serviceType, uint256 price) external',
+  'function claimBounty(bytes32 id) external',
+  'function submitWork(bytes32 id, string calldata result) external',
+  'function bounties(bytes32) view returns (address client, address provider, uint256 amount, string description, string result, uint8 status)',
   'event AgentRegistered(address indexed agent, bytes32 pubkey)',
   'event ServiceListed(address indexed agent, string serviceType, uint256 price)',
+  'event BountyPosted(bytes32 indexed id, address indexed client, uint256 amount, string description)',
+  'event BountyClaimed(bytes32 indexed id, address indexed provider)',
+  'event WorkSubmitted(bytes32 indexed id, address indexed provider, string result)',
+  'event BountyReleased(bytes32 indexed id, address indexed provider, uint256 amount)',
+  'event BountyCancelled(bytes32 indexed id)',
   'event EscrowCreated(bytes32 indexed taskId, address client, address provider, uint256 amount)',
   'event EscrowReleased(bytes32 indexed taskId, uint256 amount)'
 ]
 
-const DEPLOY_BLOCK = 37850000 // new contract deployed Feb 20 2026 (~block 37.85M)
+const BOUNTY_STATUS = ['Open', 'Claimed', 'Submitted', 'Released', 'Cancelled']
+
+const DEPLOY_BLOCK = 37920000 // bounty contract deployed Feb 20 2026
 
 if (!RELAYER_KEY) {
   console.error('[relayer] RELAYER_PRIVATE_KEY not set — relayer disabled')
@@ -262,6 +272,109 @@ const server = http.createServer(async (req, res) => {
         })
       } catch (e) {
         console.error('[relayer] Service error:', e.message)
+        return json(res, 500, { error: e.message })
+      }
+    })
+    return
+  }
+
+  // ── GET /api/bounties ────────────────────────────────────────────────────
+  if (req.method === 'GET' && req.url.startsWith('/api/bounties')) {
+    try {
+      const currentBlock = await provider.getBlockNumber()
+      const CHUNK = 9000
+      const events = []
+      for (let from = DEPLOY_BLOCK; from <= currentBlock; from += CHUNK) {
+        const to = Math.min(from + CHUNK - 1, currentBlock)
+        const chunk = await contract.queryFilter(contract.filters.BountyPosted(), from, to)
+        events.push(...chunk)
+      }
+      const bounties = await Promise.all(events.map(async e => {
+        const b = await contract.bounties(e.args.id)
+        return {
+          id: e.args.id,
+          client: b.client,
+          provider: b.provider === '0x0000000000000000000000000000000000000000' ? null : b.provider,
+          amount_eth: ethers.formatEther(b.amount),
+          description: b.description,
+          result: b.result || null,
+          status: BOUNTY_STATUS[Number(b.status)],
+          block: e.blockNumber,
+          tx: e.transactionHash
+        }
+      }))
+      const status = new URL(req.url, 'http://x').searchParams.get('status')
+      const filtered = status ? bounties.filter(b => b.status.toLowerCase() === status.toLowerCase()) : bounties
+      return json(res, 200, { bounties: filtered, total: filtered.length })
+    } catch (e) {
+      return json(res, 500, { error: e.message })
+    }
+  }
+
+  // ── POST /api/bounty/claim ────────────────────────────────────────────────
+  // Registered agent claims an open bounty (relayer sponsors gas)
+  if (req.method === 'POST' && req.url === '/api/bounty/claim') {
+    let body = ''
+    req.on('data', chunk => body += chunk)
+    req.on('end', async () => {
+      try {
+        const { bountyId, agentAddress } = JSON.parse(body)
+        if (!bountyId) return json(res, 400, { error: 'bountyId required' })
+        if (!agentAddress || !ethers.isAddress(agentAddress)) return json(res, 400, { error: 'Invalid agentAddress' })
+
+        const info = await contract.agents(agentAddress)
+        if (!info.registered) return json(res, 400, { error: 'Agent not registered. Call /api/register first.' })
+
+        const balance = await provider.getBalance(signer.address)
+        if (balance < ethers.parseEther('0.00005')) return json(res, 503, { error: 'Gas tank low.' })
+
+        console.log(`[relayer] Agent ${agentAddress} claiming bounty ${bountyId}`)
+        const tx = await contract.claimBounty(bountyId)
+        await tx.wait()
+
+        console.log(`[relayer] ✅ Bounty claimed — tx: ${tx.hash}`)
+        return json(res, 200, {
+          success: true,
+          txHash: tx.hash,
+          explorer: `https://sepolia.basescan.org/tx/${tx.hash}`,
+          message: 'Bounty claimed! Get to work and submit via /api/bounty/submit'
+        })
+      } catch (e) {
+        console.error('[relayer] Claim error:', e.message)
+        return json(res, 500, { error: e.message })
+      }
+    })
+    return
+  }
+
+  // ── POST /api/bounty/submit ───────────────────────────────────────────────
+  // Agent submits completed work
+  if (req.method === 'POST' && req.url === '/api/bounty/submit') {
+    let body = ''
+    req.on('data', chunk => body += chunk)
+    req.on('end', async () => {
+      try {
+        const { bountyId, agentAddress, result } = JSON.parse(body)
+        if (!bountyId) return json(res, 400, { error: 'bountyId required' })
+        if (!agentAddress || !ethers.isAddress(agentAddress)) return json(res, 400, { error: 'Invalid agentAddress' })
+        if (!result) return json(res, 400, { error: 'result required (URL, hash, or text)' })
+
+        const balance = await provider.getBalance(signer.address)
+        if (balance < ethers.parseEther('0.00005')) return json(res, 503, { error: 'Gas tank low.' })
+
+        console.log(`[relayer] Submitting work for bounty ${bountyId}`)
+        const tx = await contract.submitWork(bountyId, result)
+        await tx.wait()
+
+        console.log(`[relayer] ✅ Work submitted — tx: ${tx.hash}`)
+        return json(res, 200, {
+          success: true,
+          txHash: tx.hash,
+          explorer: `https://sepolia.basescan.org/tx/${tx.hash}`,
+          message: 'Work submitted! Waiting for client to release payment.'
+        })
+      } catch (e) {
+        console.error('[relayer] Submit error:', e.message)
         return json(res, 500, { error: e.message })
       }
     })
