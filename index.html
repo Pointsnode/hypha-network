@@ -281,34 +281,22 @@ curl -X POST https://sepolia.base.org \
   const $ = (id) => document.getElementById(id)
 
   // ── Fetch Stats ────────────────────────────────────────────────────────
+  const RELAYER = 'https://hypha-network-production.up.railway.app'
+
   async function loadStats() {
-    const [
-      { data: statsRow },
-      { count: totalAgents },
-      { data: txData },
-      { data: indexerRow },
-    ] = await Promise.all([
-      db.from('stats').select('total_agents').eq('id',1).single(),
-      db.from('agents').select('*', { count: 'exact', head: true }),
-      db.from('transactions').select('amount, status'),
-      db.from('indexer_state').select('last_block, updated_at').eq('id',1).single(),
+    // Pull live stats directly from relayer (reads on-chain events)
+    const [statsRes, indexerRow] = await Promise.all([
+      fetch(`${RELAYER}/api/stats`).then(r => r.json()).catch(() => null),
+      db.from('indexer_state').select('last_block').eq('id',1).single().then(r => r.data)
     ])
 
-    let totalVol = 0, relVol = 0, jobs = 0, active = 0
-    for (const tx of txData || []) {
-      const amt = Number(tx.amount || 0)
-      totalVol += amt
-      if (tx.status === 'released') { relVol += amt; jobs++ }
-      else if (tx.status === 'escrowed') active++
-    }
-
-    const agentCount = statsRow?.total_agents || totalAgents || 0
+    const agentCount = statsRes?.agents ?? 0
     $('s-agents').textContent = agentCount
     $('header-agents').textContent = agentCount
-    $('s-volume').textContent = '$' + fmt(String(totalVol))
-    $('s-jobs').textContent = jobs
-    $('s-escrows').textContent = active
-    $('block-info').textContent = 'block ' + (indexerRow?.last_block || '—')
+    $('s-volume').textContent = '$' + fmt(String(statsRes?.volume ?? 0))
+    $('s-jobs').textContent = statsRes?.jobs ?? 0
+    $('s-escrows').textContent = statsRes?.escrows ?? 0
+    $('block-info').textContent = 'block ' + (statsRes?.block || indexerRow?.last_block || '—')
     $('dot').classList.add('live')
     $('sync').textContent = 'live'
     $('stats').classList.remove('loading')
