@@ -2,7 +2,7 @@ import { ethers } from 'ethers'
 import http from 'http'
 
 const RPC         = process.env.RPC_URL          || 'https://sepolia.base.org'
-const CONTRACT    = process.env.CONTRACT_ADDRESS || '0x12175C516BAE810378294B808b1C6646EA2E4351'
+const CONTRACT    = process.env.CONTRACT_ADDRESS || '0xf1cF5A40ad2c48456C2aD4d59554Ad9baa51F644'
 const RELAYER_KEY = process.env.RELAYER_PRIVATE_KEY
 const PORT        = process.env.PORT || 3000
 
