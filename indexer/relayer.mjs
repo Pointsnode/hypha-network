@@ -2,9 +2,12 @@ import { ethers } from 'ethers'
 import http from 'http'
 
 const RPC         = process.env.RPC_URL          || 'https://sepolia.base.org'
-const CONTRACT    = process.env.CONTRACT_ADDRESS || '0xf48505B6444bf09DaeD018F07d7Cb69BDF006596'
+const CONTRACT    = process.env.CONTRACT_ADDRESS || '0x12175C516BAE810378294B808b1C6646EA2E4351'
 const RELAYER_KEY = process.env.RELAYER_PRIVATE_KEY
-const PORT        = process.env.PORT || process.env.RELAYER_PORT || 3000
+const PORT        = process.env.PORT || 3000
+
+// Base Sepolia USDC
+const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
 
 const ABI = [
   'function registerAgentFor(address agent, bytes32 pubkey) external',
@@ -25,7 +28,7 @@ const ABI = [
 ]
 
 const BOUNTY_STATUS = ['Open', 'Claimed', 'Submitted', 'Released', 'Cancelled']
-const DEPLOY_BLOCK = 37920000
+const DEPLOY_BLOCK  = 37930000
 
 if (!RELAYER_KEY) { console.error('[relayer] RELAYER_PRIVATE_KEY not set'); process.exit(1) }
 
@@ -33,17 +36,16 @@ const provider = new ethers.JsonRpcProvider(RPC)
 const signer   = new ethers.Wallet(RELAYER_KEY, provider)
 const contract = new ethers.Contract(CONTRACT, ABI, signer)
 
-console.log(`[relayer] Gas tank: ${signer.address}`)
-console.log(`[relayer] Contract: ${CONTRACT}`)
-console.log(`[relayer] Listening on port ${PORT}`)
+console.log(`[relayer] Gas tank : ${signer.address}`)
+console.log(`[relayer] Contract : ${CONTRACT}`)
+console.log(`[relayer] Port     : ${PORT}`)
 
 const recentAddresses = new Map()
 const COOLDOWN_MS = 60 * 60 * 1000
 
 function isRateLimited(address) {
   const last = recentAddresses.get(address)
-  if (!last) return false
-  return Date.now() - last < COOLDOWN_MS
+  return last ? Date.now() - last < COOLDOWN_MS : false
 }
 
 function setCors(res) {
@@ -57,15 +59,28 @@ function json(res, status, body) {
   res.end(JSON.stringify(body))
 }
 
+async function queryChunks(filter) {
+  const currentBlock = await provider.getBlockNumber()
+  const CHUNK = 9000
+  const events = []
+  for (let from = DEPLOY_BLOCK; from <= currentBlock; from += CHUNK) {
+    const chunk = await contract.queryFilter(filter, from, Math.min(from + CHUNK - 1, currentBlock))
+    events.push(...chunk)
+  }
+  return events
+}
+
 const server = http.createServer(async (req, res) => {
   setCors(res)
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return }
 
+  // GET /health
   if (req.method === 'GET' && req.url === '/health') {
     const balance = await provider.getBalance(signer.address)
-    return json(res, 200, { status: 'ok', contract: CONTRACT, gasTank: signer.address, balance: ethers.formatEther(balance) + ' ETH' })
+    return json(res, 200, { status: 'ok', contract: CONTRACT, gasTank: signer.address, balance: ethers.formatEther(balance) + ' ETH', usdc: USDC_ADDRESS })
   }
 
+  // POST /api/register
   if (req.method === 'POST' && req.url === '/api/register') {
     let body = ''; req.on('data', c => body += c)
     req.on('end', async () => {
@@ -79,80 +94,57 @@ const server = http.createServer(async (req, res) => {
         const pkLabel = pubkey || addr.slice(0, 31)
         const pkBytes = ethers.encodeBytes32String(pkLabel.slice(0, 31))
         const balance = await provider.getBalance(signer.address)
-        if (balance < ethers.parseEther('0.00005')) return json(res, 503, { error: 'Gas tank low. Try again later.' })
-        console.log(`[relayer] Registering agent ${addr}`)
+        if (balance < ethers.parseEther('0.00005')) return json(res, 503, { error: 'Gas tank low.' })
+        console.log(`[relayer] Registering ${addr}`)
         const tx = await contract.registerAgentFor(address, pkBytes)
         await tx.wait()
         recentAddresses.set(addr, Date.now())
-        console.log(`[relayer] ✅ Registered ${addr} — tx: ${tx.hash}`)
+        console.log(`[relayer] ✅ Registered ${addr} tx: ${tx.hash}`)
         return json(res, 200, { success: true, txHash: tx.hash, explorer: `https://sepolia.basescan.org/tx/${tx.hash}`, message: 'Agent registered on HYPHA!' })
-      } catch (e) { return json(res, 500, { error: e.message || 'Registration failed' }) }
+      } catch (e) { return json(res, 500, { error: e.message }) }
     }); return
   }
 
+  // GET /api/stats
   if (req.method === 'GET' && req.url === '/api/stats') {
     try {
       const currentBlock = await provider.getBlockNumber()
-      const CHUNK = 9000
-      async function queryAllChunks(filter) {
-        const events = []
-        for (let from = DEPLOY_BLOCK; from <= currentBlock; from += CHUNK) {
-          const chunk = await contract.queryFilter(filter, from, Math.min(from + CHUNK - 1, currentBlock))
-          events.push(...chunk)
-        }
-        return events
-      }
-      const [agentEvents, escrowCreated, escrowReleased] = await Promise.all([
-        queryAllChunks(contract.filters.AgentRegistered()),
-        queryAllChunks(contract.filters.EscrowCreated()),
-        queryAllChunks(contract.filters.EscrowReleased())
+      const [agentEvents, escrowReleased, escrowCreated] = await Promise.all([
+        queryChunks(contract.filters.AgentRegistered()),
+        queryChunks(contract.filters.EscrowReleased()),
+        queryChunks(contract.filters.EscrowCreated())
       ])
-      const volume = escrowReleased.reduce((sum, e) => sum + Number(ethers.formatEther(e.args.amount)), 0)
-      return json(res, 200, { agents: agentEvents.length, volume: parseFloat(volume.toFixed(6)), jobs: escrowReleased.length, escrows: escrowCreated.length - escrowReleased.length, contract: CONTRACT, block: currentBlock })
+      const volume = escrowReleased.reduce((sum, e) => sum + Number(e.args.amount) / 1e6, 0)
+      return json(res, 200, { agents: agentEvents.length, volume: parseFloat(volume.toFixed(2)), jobs: escrowReleased.length, escrows: escrowCreated.length - escrowReleased.length, contract: CONTRACT, block: currentBlock })
     } catch (e) { return json(res, 500, { error: e.message }) }
   }
 
+  // GET /api/agents
   if (req.method === 'GET' && req.url === '/api/agents') {
     try {
-      const currentBlock = await provider.getBlockNumber()
-      const events = []
-      for (let from = DEPLOY_BLOCK; from <= currentBlock; from += 9000) {
-        const chunk = await contract.queryFilter(contract.filters.AgentRegistered(), from, Math.min(from + 8999, currentBlock))
-        events.push(...chunk)
-      }
+      const events = await queryChunks(contract.filters.AgentRegistered())
       const agents = events.map(e => ({ address: e.args.agent, pubkey: ethers.decodeBytes32String(e.args.pubkey).replace(/\0/g, ''), block: e.blockNumber, tx: e.transactionHash }))
       return json(res, 200, { agents, total: agents.length })
     } catch (e) { return json(res, 500, { error: e.message }) }
   }
 
+  // GET /api/services
   if (req.method === 'GET' && req.url === '/api/services') {
     try {
-      const currentBlock = await provider.getBlockNumber()
-      const events = []
-      for (let from = DEPLOY_BLOCK; from <= currentBlock; from += 9000) {
-        const chunk = await contract.queryFilter(contract.filters.ServiceListed(), from, Math.min(from + 8999, currentBlock))
-        events.push(...chunk)
-      }
+      const events = await queryChunks(contract.filters.ServiceListed())
       const seen = new Map()
-      for (const e of events) {
-        seen.set(`${e.args.agent}-${e.args.serviceType}`, { agent: e.args.agent, serviceType: e.args.serviceType, price_eth: ethers.formatEther(e.args.price), block: e.blockNumber, tx: e.transactionHash })
-      }
-      const services = Array.from(seen.values())
-      return json(res, 200, { services, total: services.length })
+      for (const e of events) seen.set(`${e.args.agent}-${e.args.serviceType}`, { agent: e.args.agent, serviceType: e.args.serviceType, price_usdc: (Number(e.args.price) / 1e6).toFixed(2), block: e.blockNumber })
+      return json(res, 200, { services: Array.from(seen.values()), total: seen.size })
     } catch (e) { return json(res, 500, { error: e.message }) }
   }
 
+  // GET /api/bounties
   if (req.method === 'GET' && req.url.startsWith('/api/bounties')) {
     try {
-      const currentBlock = await provider.getBlockNumber()
-      const events = []
-      for (let from = DEPLOY_BLOCK; from <= currentBlock; from += 9000) {
-        const chunk = await contract.queryFilter(contract.filters.BountyPosted(), from, Math.min(from + 8999, currentBlock))
-        events.push(...chunk)
-      }
+      const events = await queryChunks(contract.filters.BountyPosted())
       const bounties = await Promise.all(events.map(async e => {
         const b = await contract.bounties(e.args.id)
-        return { id: e.args.id, client: b.client, provider: b.provider === '0x0000000000000000000000000000000000000000' ? null : b.provider, amount_eth: ethers.formatEther(b.amount), description: b.description, result: b.result || null, status: BOUNTY_STATUS[Number(b.status)], block: e.blockNumber, tx: e.transactionHash }
+        return { id: e.args.id, client: b.client, provider: b.provider === '0x0000000000000000000000000000000000000000' ? null : b.provider, amount_usdc: (Number(b.amount) / 1e6).toFixed(2), description: b.description, result: b.result || null, status: BOUNTY_STATUS[Number(b.status)], block: e.blockNumber, tx: e.transactionHash }
       }))
       const status = new URL(req.url, 'http://x').searchParams.get('status')
       const filtered = status ? bounties.filter(b => b.status.toLowerCase() === status.toLowerCase()) : bounties
@@ -160,6 +152,7 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { return json(res, 500, { error: e.message }) }
   }
 
+  // POST /api/bounty/claim
   if (req.method === 'POST' && req.url === '/api/bounty/claim') {
     let body = ''; req.on('data', c => body += c)
     req.on('end', async () => {
@@ -178,6 +171,7 @@ const server = http.createServer(async (req, res) => {
     }); return
   }
 
+  // POST /api/bounty/submit
   if (req.method === 'POST' && req.url === '/api/bounty/submit') {
     let body = ''; req.on('data', c => body += c)
     req.on('end', async () => {
@@ -197,4 +191,4 @@ const server = http.createServer(async (req, res) => {
   json(res, 404, { error: 'Not found' })
 })
 
-server.listen(PORT, () => { console.log(`[relayer] 🚀 Ready on port ${PORT}`) })
+server.listen(PORT, () => console.log(`[relayer] 🚀 Ready on port ${PORT}`))

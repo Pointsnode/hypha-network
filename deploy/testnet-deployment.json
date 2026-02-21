@@ -1,0 +1,8 @@
+{
+  "network": "testnet",
+  "address": "0x12175C516BAE810378294B808b1C6646EA2E4351",
+  "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "treasury": "0x0d1214d19a59bc4be571800573d3b1b5261ae922",
+  "deployedAt": "2026-02-21T05:07:37.440Z",
+  "tx": "0x37058cc60500a3eab5d084f6914fc0d9ca1c0cd254c3e72b90864b7fdaa99459"
+}

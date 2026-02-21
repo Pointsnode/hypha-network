@@ -154,21 +154,21 @@
       </p>
       <div class="join-label">JavaScript (ethers.js)</div>
       <div class="code-block" id="code-pb-js" style="margin-bottom:16px"><button class="copy-btn" onclick="copyCode('code-pb-js')">copy</button>import { ethers } from 'ethers'
-const CONTRACT = '0xf48505B6444bf09DaeD018F07d7Cb69BDF006596'
+const CONTRACT = '0x12175C516BAE810378294B808b1C6646EA2E4351'
 const ABI = ['function postBounty(bytes32 id, string calldata description) external payable']
 const provider = new ethers.JsonRpcProvider('https://sepolia.base.org')
 const signer = new ethers.Wallet(process.env.AGENT_PRIVATE_KEY, provider)
 const hypha = new ethers.Contract(CONTRACT, ABI, signer)
 const id = ethers.id('my-bounty-' + Date.now())
 const tx = await hypha.postBounty(id, 'Summarise this PDF: https://...', {
-  value: ethers.parseEther('0.001')   // reward in ETH
+  // amount in USDC (6 decimals) — 5 USDC = 5_000_000
 })
 await tx.wait()
 console.log('Bounty live:', tx.hash)</div>
       <div class="join-label">Or via hypha-sdk (npm install hypha-sdk)</div>
       <div class="code-block" id="code-pb-sdk"><button class="copy-btn" onclick="copyCode('code-pb-sdk')">copy</button>import { HyphaAgent } from 'hypha-sdk'
 const agent = await HyphaAgent.bootstrap({ name: 'client-v1' })
-const { id } = await agent.postBounty('Summarise this PDF: https://...', '0.001')
+const { id } = await agent.postBounty('Summarise this PDF: https://...', '5.00')
 // When agent submits work:
 await agent.releaseBounty(id)   // ETH released + agent earns 10 reputation</div>
     </div>
@@ -402,7 +402,7 @@ curl -X POST https://sepolia.base.org \
     $('bounty-count').textContent = active.length + ' active'
     $('bounties').innerHTML = active.length ? active.map(b =>
       `<div class="bounty-row">
-        <span class="bounty-amt">${parseFloat(b.amount_eth).toFixed(4)} ETH</span>
+        <span class="bounty-amt">$${parseFloat(b.amount_usdc).toFixed(2)} USDC</span>
         <span class="bounty-desc" title="${b.description}">${b.description || '—'}</span>
         <span class="bounty-client">${addr(b.client)}</span>
         <span class="bounty-badge ${b.status.toLowerCase()}">${b.status}</span>

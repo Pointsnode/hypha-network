@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "hypha-project": "github:Pointsnode/hypha-network#main"
+  }
+}

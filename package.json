@@ -22,7 +22,7 @@
   "dependencies": {
     "@tetherto/wdk": "latest",
     "@tetherto/wdk-wallet-evm": "latest",
-    "ethers": "^6.0.0",
+    "ethers": "^6.16.0",
     "hyperswarm": "^4.0.0"
   },
   "devDependencies": {

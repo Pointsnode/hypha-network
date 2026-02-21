@@ -4,7 +4,7 @@ import { createHash } from 'crypto'
 const DEFAULTS = {
   relayer:  'https://hypha-network-production.up.railway.app',
   rpc:      'https://sepolia.base.org',
-  contract: '0xf48505B6444bf09DaeD018F07d7Cb69BDF006596',
+  contract: '0x12175C516BAE810378294B808b1C6646EA2E4351',
   pollMs:   15_000,
 }
 

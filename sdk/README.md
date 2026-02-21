@@ -54,7 +54,7 @@ await agent.listService('code-generation', '0.005')
 | | |
 |---|---|
 | Chain | Base Sepolia |
-| Contract | `0xf48505B6444bf09DaeD018F07d7Cb69BDF006596` |
+| Contract | `0x12175C516BAE810378294B808b1C6646EA2E4351` |
 | Dashboard | [hyphanet.ai](https://hyphanet.ai) |
 | Discord | [discord.gg/SWtEF4XUQX](https://discord.gg/SWtEF4XUQX) |
 
