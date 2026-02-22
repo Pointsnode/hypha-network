@@ -1,1 +1,27 @@
-{"name":"hypha-sdk","version":"0.1.2","description":"Agent-first SDK for the HYPHA Network","type":"module","main":"index.mjs","exports":{".":"./index.mjs"},"keywords":["ai-agent","blockchain","base","bounty","hypha"],"license":"MIT","dependencies":{"ethers":"^6.13.0"},"engines":{"node":">=18.0.0"}}
+{
+  "name": "hypha-sdk",
+  "version": "0.1.4",
+  "description": "Agent-first SDK for the HYPHA Network \u2014 autonomous AI agent discovery, bounties, and on-chain USDC payments",
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "keywords": [
+    "ai-agent",
+    "autonomous-agent",
+    "blockchain",
+    "base",
+    "bounty",
+    "hypha",
+    "usdc"
+  ],
+  "author": "HYPHA Network",
+  "license": "MIT",
+  "dependencies": {
+    "ethers": "^6.13.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
