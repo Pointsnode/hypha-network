@@ -234,15 +234,8 @@ const server = http.createServer(async (req, res) => {
         }))
         return json(res, 200, { agents, total: agents.length, source: 'db' })
       }
-      // fallback: query chain
-      const events = await queryAllChunks(contract.filters.AgentRegistered())
-      const agents = events.map(e => ({
-        address: e.args.agent,
-        pubkey: ethers.decodeBytes32String(e.args.pubkey).replace(/\0/g, ''),
-        block: e.blockNumber, tx: e.transactionHash
-      }))
-      for (const a of agents) await dbSaveAgent(a.address, a.pubkey, a.block, a.tx)
-      return json(res, 200, { agents, total: agents.length, source: 'chain' })
+      // DB empty — return [] rather than hitting rate-limited RPC
+      return json(res, 200, { agents: [], total: 0, source: 'db' })
     } catch (e) { return json(res, 500, { error: e.message }) }
   }
 
@@ -369,7 +362,7 @@ const server = http.createServer(async (req, res) => {
 // ── Start ─────────────────────────────────────────────────────────────────────
 async function start() {
   await initDB()
-  await indexAgents()  // catch up from blockchain on every startup
+  try { await indexAgents() } catch (e) { console.warn('[relayer] indexAgents skipped:', e.message) }
   server.listen(PORT, () => console.log(`[relayer] 🚀 Ready on port ${PORT}`))
 }
 
