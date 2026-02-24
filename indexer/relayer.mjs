@@ -5,7 +5,7 @@ import pg from 'pg'
 const { Pool } = pg
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const RPC         = process.env.RPC_URL          || 'https://mainnet.base.org'
+const RPC         = process.env.RPC_URL          || 'https://base.llamarpc.com'
 const CONTRACT    = process.env.CONTRACT_ADDRESS || '0xf1cF5A40ad2c48456C2aD4d59554Ad9baa51F644'
 const RELAYER_KEY = process.env.RELAYER_PRIVATE_KEY
 const PORT        = process.env.PORT || 3000
@@ -38,6 +38,11 @@ if (!RELAYER_KEY) { console.error('[relayer] RELAYER_PRIVATE_KEY not set'); proc
 const provider = new ethers.JsonRpcProvider(RPC)
 const signer   = new ethers.Wallet(RELAYER_KEY, provider)
 const contract = new ethers.Contract(CONTRACT, ABI, signer)
+
+const USDC_ADDRESS    = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+const SIGNUP_BONUS    = ethers.parseUnits('1', 6)
+const BONUS_MAX_SLOTS = 25
+const usdc = new ethers.Contract(USDC_ADDRESS, ['function transfer(address to, uint256 amount) returns (bool)'], signer)
 
 console.log(`[relayer] Gas tank : ${signer.address}`)
 console.log(`[relayer] Contract : ${CONTRACT}`)
@@ -164,6 +169,28 @@ async function queryAllChunks(filter, fromBlock) {
   return events
 }
 
+
+async function dbGetBonusCount() {
+  if (!pool) return 0
+  const res = await pool.query("SELECT value FROM indexer_state WHERE key = 'signup_bonus_count'")
+  return res.rows.length ? parseInt(res.rows[0].value) : 0
+}
+async function dbIncrementBonus() {
+  if (!pool) return
+  await pool.query("INSERT INTO indexer_state (key, value) VALUES ('signup_bonus_count', '1') ON CONFLICT (key) DO UPDATE SET value = (CAST(indexer_state.value AS INTEGER) + 1)::TEXT")
+}
+async function sendSignupBonus(addr) {
+  try {
+    const used = await dbGetBonusCount()
+    if (used >= BONUS_MAX_SLOTS) return null
+    console.log('[bonus] Sending $1 USDC to ' + addr + ' slot ' + (used+1))
+    const tx = await usdc.transfer(addr, SIGNUP_BONUS)
+    await tx.wait()
+    await dbIncrementBonus()
+    return tx.hash
+  } catch(e) { console.error('[bonus] Failed:', e.message); return null }
+}
+
 // ── HTTP Server ───────────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
   setCors(res)
@@ -208,12 +235,15 @@ const server = http.createServer(async (req, res) => {
 
         recentAddresses.set(addr, Date.now())
         await dbSaveAgent(addr, pkLabel, tx.blockNumber || 0, tx.hash)
-
-        console.log(`[relayer] ✅ Registered ${addr} — tx: ${tx.hash}`)
+        const bonusTx = await sendSignupBonus(addr)
+        const slotsLeft = BONUS_MAX_SLOTS - (await dbGetBonusCount())
+        console.log(`[relayer] ✅ Registered ${addr}`)
         return json(res, 200, {
           success: true, txHash: tx.hash,
           explorer: `https://basescan.org/tx/${tx.hash}`,
-          message: 'Agent registered on HYPHA!'
+          bonusTx: bonusTx || null,
+          slotsLeft: Math.max(0, slotsLeft),
+          message: bonusTx ? `Registered! $1 USDC bonus sent (${Math.max(0,slotsLeft)} slots left)` : 'Agent registered on HYPHA!'
         })
       } catch (e) {
         console.error('[relayer] Register error:', e.message)
